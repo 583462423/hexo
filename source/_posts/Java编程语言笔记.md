@@ -501,6 +501,51 @@ try {
 ```
 还可以将命令换成reboot，那么执行后Ubuntu系统就会立刻重启，不信自己去尝试一下试试。
 
+根据以上知识，个人写了一个一键提交hexo命令的功能：
+```
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
+/**
+ * 一键上传功能，注意要配置ssh
+ */
+public class hexo {
+    public static void main(String[] args){
+        String[] cmds = {"hexo g","hexo d","git add","git commit -m ","git push"};
+
+        SimpleDateFormat sdf = new SimpleDateFormat("YYYY-MM-dd");
+        cmds[3] = cmds[3] + '"' + sdf.format(System.currentTimeMillis()) +  '"';
+
+        for(int i=0; i<cmds.length; i++){
+            runCmd(cmds[i]);
+        }
+    }
+
+    public static void runCmd(String cmd){
+        Runtime runtime = Runtime.getRuntime();
+        try {
+            Process p = runtime.exec(cmd);
+            String result = "";
+            InputStreamReader isr = new InputStreamReader(p.getInputStream());
+            BufferedReader br = new BufferedReader(isr);
+            String tmp;
+            while((tmp = br.readLine())!=null){
+                result += tmp + "\n";
+            }
+            if(p.waitFor() != 0)throw new RuntimeException("子进程运行出错");
+            System.out.println(result);
+            //能执行到这说明执行成功，接着进行制定其他命令
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+```
 
 所以到这就应该知道，Java也是可以调用命令行的命令了吧！
 如果这样，那么黑客不就肆无忌惮了= =
