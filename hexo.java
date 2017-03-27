@@ -29,8 +29,9 @@ public class hexo {
             while((tmp = br.readLine())!=null){
                 result += tmp + "\n";
             }
-            if(p.waitFor() != 0)throw new RuntimeException("子进程运行出错");
+
             System.out.println(result);
+            if(p.waitFor() != 0)throw new RuntimeException(cmd + "命令运行出错");
             //能执行到这说明执行成功，接着进行制定hexo d
         } catch (IOException e) {
             e.printStackTrace();
