@@ -328,9 +328,11 @@ util用于定义独立的集合，这样其他bean对象就可以引用该集合
 <property name="cars" ref="cars"/>
 ```
 
+util不仅包含list,还有一些map,set等多种属性。
 不过如果要使用util，必须要在xml根部加上util的命名空间。
 
 ### p
+p命名空间，对应property
 首先导入p命名空间，p简化了bean的配置，如原配置：
 ```
     <bean id="qxg" class="con.qxg.bean.Person">
@@ -344,6 +346,11 @@ util用于定义独立的集合，这样其他bean对象就可以引用该集合
 ```
 <bean id="qxg" class="con.qxg.bean.Person" p:name=“qxg” p:age="21" p:car-ref="car"/>
 ```
+
+### c
+c命名空间主要是对应constructor-arg元素
+使用方式是：`c:_0`,`c:_0-ref`,`c:car`,`c:car-ref`
+注意`_0`中的0表示参数的index，所以如果构造器可传入两个参数,那么可以使用`c:_1`来指明第二个参数传入的值。
 
 ### 自动装配(不推荐使用)
 autowire属性来自动装配，如以下例子：
@@ -514,6 +521,8 @@ value ="#{count>30 ? '呵':'哈'}"
 
 
 # Bean生命周期
+首先有个lazy-init,指的懒加载。bean配置完成后，在应用启动完成后，所有的bean都会初始化，而如果制定lazy-init后，只有用到的时候才会初始化。一般用不到。
+
 在bean的配置文件中，制定bean的init-method，和destroy-method，这样bean在初始化的时候会执行init-method，销毁的时候会执行destroy-method,如：
 
 ```

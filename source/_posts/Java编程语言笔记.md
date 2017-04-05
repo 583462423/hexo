@@ -608,3 +608,121 @@ private方法默认是final形的.
 final类中的所有方法,隐式都为final形.
 
 
+# Java核心技术
+java中有自带的解析xml的工具，如DocumentBuilder,读入一个Xml文档，可以通过该类对象，获得该类对象，可以通过DocumentBuilderFactory.而获取完该对象后，可以传入一个file，或者URL来制定.xml文件。
+
+Document 是org.w3c.dom中的类，其包含XML文档中的树型结构，通过该对象的getDocumentElement方法可以获得根节点。getTagName可以获得tag名。
+
+通过getChildNodes可以获得子节点的列表，返回一个NodeList类型的对象，通过该对象的item(index)方法可以获取index位置的子节点(Node),如果是最终的子节点，可以将来子节点转换为Element，Element中有一系列的属性.如果枚举其中的属性，可以使用getAttributes方法。
+
+解析XML的另一个元老是SAX解析器。获取的解析器的方法如下：
+```
+SAXParserFactory factory = SAXParserFactory.newInstance();
+SAXParser parser = factory.newSAXParser();
+        
+```
+那么通过SAXParser的parse方法就可以进行解析，其方法如下：
+```
+public void parse(File f, DefaultHandler dh)
+```
+第一个参数可以传入一个流，可以传入字符串或文件，第二个是一个DefaultHandler，主要的流式操作是在这个Handler中.
+
+如果要深入可以进行百度。
+
+。
+
+
+# 网络
+
+talnet这个工具可以对网络进行调试，尝试输入以下内容：
+```
+talnet horstmann.com 80
+GET / HTTP/1.1
+Host: horstmann.com
+[ENTER]
+```
+之后返回的数据是HTML代码。
+
+所以其实抓包的时候，也可以通过该命令进行测试
+
+示例代码演示了抓包后显示:
+```
+try(Socket s = new Socket("time-A.timefreq.bldrdoc.gov",13)){
+    InputStream in = s.getInputStream();
+    Scanner scanner = new Scanner(in);
+    while(scanner.hasNext()){
+        String line = scanner.nextLine();
+        System.out.println(line);
+    }
+}
+```
+看到这行代码我很惊奇，try后面竟然使用了()，并且内部有代码，当我测试的时候，try()括号里面跟的其实是java.lang.AutoCloseable类型的变量，而Socket s = new Socket("....",13)这行代码其实最终还是Socket s,而Socket实现了Closeable接口，Closeable接口继承于AutoCloseable接口。
+
+套接字可以设置超时时间：s.setSoTimeout(1000)//1s超时。参考Socket的如下方法：
+Socket() :创建一个还未被链接的套接字
+void connect(SocketAddress address):将套接字链接到给定的地址
+void connect(SocketAddress address,int timeoutInMilliseconds):将套接字链接到给定的地址。如果在给定的时间内没有相应，则返回。
+void setSoTimeout(int timeoutInMilliseconds):设置该套接字上读请求的阻塞时间。如果超出给定时间，则跑出InterruptedIOException异常。
+boolean isConnected():如果该套接字已被连接，则返回true。
+boolean isClosed():如果套接字已被关闭，返回true
+
+# InetAddress
+因特网地址，即IP地址，通过如下方法可以获取一个链接的ip地址：
+```
+InetAddress inetAddress = InetAddress.getByName("www.qxgzone.com");
+```
+
+而有些网络可能有多个IP地址，比如百度，其一个域名可能会映射多个IP地址，可以通过下列方法获取所有IP地址：
+```
+InetAddress inetAddress = InetAddress.getAllByName("www.baidu.com")
+```
+
+而获取本机的IP地址方式是：
+```
+InetAddress inetAddress = InetAddress.getLocalHost();
+```
+
+而InetAddress可以通过getHostName()来获取主机名。
+
+
+# 创建一个服务器
+通过以上知识，可以创建一个服务器，服务器等待客户端talnet来链接该服务器。
+如以下代码：
+```
+//try内部的变量是AutoClosed形的，所以不用进行关闭
+try(ServerSocket ss = new ServerSocket(8909)){
+    try (Socket s = ss.accept()) {
+        //获取输入流和输出流，从输入流读取数据，输出流输出数据
+        InputStream in = s.getInputStream();
+        OutputStream o = s.getOutputStream();
+
+        BufferedReader br = new BufferedReader(new InputStreamReader(in));
+        PrintWriter out = new PrintWriter(o,true); //第二个参数是autoFlush
+        String line = null;
+
+        while ((line = br.readLine()) != null) {
+            if("quit".equals(line)){
+                out.println("Bye");
+                break;
+            }
+            out.println(line);
+        }
+    }
+}
+```
+这样之后，就可以通过telnet与该服务器的8909端口号进行链接了。
+
+而对于多用户的服务器，这样创建之后，多台用户访问会出现问题，即不响应，被阻塞，一般做法是，当使用ss.accept()获取一个Socket时候，就创建一个新的线程去执行其代码，然后进行下一个链接。
+
+而socket还有一种模式是半关闭，考虑这么一个场景，当客户端向服务端发送数据发送完毕后，客户端只需要等待接受服务端的响应即可，但是输出流必须还要一直开着。而半关闭解决了这么一种场景，输出流输出完毕，输出流关闭，并且客户端依然可等待服务器端的响应，代码如下：
+
+```
+out.println("发送的数据");
+socket.shutdownOutput();
+```
+即使用shutdownOutput即可。
+
+
+
+
+
