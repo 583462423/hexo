@@ -3,8 +3,7 @@ title:
 date: 2016-11-03 17:04:50
 comments: false
 ---
-### 感谢您的访问
-<ul style="border:1px #e0e0e0 solid;padding:50px" class="ds-recent-visitors"></ul>
+### 感谢访问,本菜鸟正在努力中...
 
 <!-- 评论模块 -->
 
