@@ -95,6 +95,27 @@ HelloWorld hello = (HelloWorld)ctx.getBean(HelloWorld.class);
 ```
 
 但是这种方式的限制是bean配置中的这种类型的bean只有一个。
+### bean的命名
+bean的配置中,id即为其名,命名要求是必须以字母开头,后面是数字连字符,下划线,菊花,冒号等完整约束的符号.
+但是如果用户确实希望用一些特殊字符进行命名,就需要使用name属性,name属性没有字符上的限制,几乎可以使用任何字符,如:?ab,123,这些都是合法的,如下:
+```
+<bean name="#car" class="com.qxg.bean.Car" />
+```
+id和name都可以指定多个名字,名字之间可用逗号,分号或空格进行分隔,如:
+```
+<bean name="#car1,123,$car" class="com.qxg.bean.Car"/>
+```
+获取方式为:`getBean("#car1")`等.
+
+但是spring不允许出现两个相同id的bean,但可以出现两个相同name的bean.如果有两个name相同的bean,那么通过getBean返回的对象,将会是最后定义的对象,原因是后定义的对象覆盖了之前的对象.所以为避免这种情况,一般只选择使用id为其命名.
+
+如果未指明id,name则spring自动将全限定名作为bean的名称,可以通过`getBean("com.qxg.bean.Car")`来获取,而如果有多个实例类相同的匿名bean,如:
+```
+<bean class="com.qxg.bean.Car"/>
+<bean class="com.qxg.bean.Car"/>
+<bean class="com.qxg.bean.Car"/>
+```
+那么获取第一个bean的方式是`getBean("com.qxg.bean.Car")`,而获取第二个bean的方式是`getBean("com.qxg.bean.Car#1")`
 
 ### constructor-arg
 
@@ -434,6 +455,15 @@ person2和person的类是一样的，但是我不想再多余的配置这个clas
           p:age="10"  p:name="haha" p:car-ref="car"/>
 ```
 
+注解@Scope的使用方法:
+```
+@Scope("prototype")
+@Component
+public class Car{
+
+}
+```
+
 ### 使用外部属性文件
 
 有时候配置bean的时候需要使用系统部署的细节信息，比如文件路径等，数据源配置信息等。
@@ -463,6 +493,16 @@ jdbcurl=jdbc:mysql:///spring
 
 那么如何取出这些值呢？通过context命名空间来导入db.properties文件。
 
+一种导入配置文件的方式是:
+```
+<bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
+        p:location="classpath:beansConfig.xml"
+          p:fileEncoding="utf-8"
+    />
+```
+该类中还有其他很多属性,比如locations指定多个配置文件,order指定配置文件的顺序,placeholderPrefix修改取值时候的前缀,默认为`${`,placeholderSuffix修改取值后缀,默认为`}`.
+
+另一种简单的配置方式如下:
 ```
     <!--导入配置文件-->
     <context:property-placeholder location="classpath:db.properties"/>
@@ -481,6 +521,26 @@ jdbcurl=jdbc:mysql:///spring
 > Establishing SSL connection without server's identity verification is not recommended. According to MySQL 5.5.45+, 5.6.26+ and 5.7.6+ requirements SSL connection must be established by default if explicit option isn't set. For compliance with existing applications not using SSL the verifyServerCertificate property is set to 'false'. You need either to explicitly disable SSL by setting useSSL=false, or set useSSL=true and provide truststore for server certificate verification.
 
 只需要把配置文件中的jdbcurl的值设为：`jdbcUrl=jdbc:mysql://localhost:3306/spring?useSSL=false`
+
+如果配置属性文件后,想要在代码中引用,就要通过注解的方式,支持的注解是@Value,比如:
+```
+@Value("${url}")
+private String url; 
+```
+### 使用加密文件
+如果直接在配置文件中存入数据库的URL,账号密码,虽然对于客户端不会构成威胁,但是对后台的所有开发人员都是透明了.而某些数据只允许掌握在少数人手中,这个时候就需要对数据进行加密.
+`PropertyPlaceholderConfigurer`继承自`PropertyResourceConfigurer`类,后者有几个有用的protected方法,用于在属性使用之前对属性进行转换处理:
+* void convertProperties(Properties props):对所有的属性进行转换操作
+* String convertProperty(String propertyName,String propertyValue):在加载属性文件并读取文件中的每个属性时,都会调用此方法进行转换处理.
+* String convertPropertyValue(String originalValue):和上一个方法类似,只不过没有传入属性名.
+
+如果自定义了一个PropertyPlaceholderConfigurer后,那么就无法使用context来配置该类,只能通过bean的方式配置
+```
+<bean class="org.springframework.beans.factory.config.MyPropertyPlaceholderConfigurer"
+        p:location="classpath:beansConfig.xml"
+          p:fileEncoding="utf-8"
+    />
+```
 
 # SpEL
 Spring表达式语言，支持运行时查询和操作对象图的强大的表达式语言。
@@ -523,6 +583,24 @@ value ="#{count>30 ? '呵':'哈'}"
 # Bean生命周期
 首先有个lazy-init,指的懒加载。bean配置完成后，在应用启动完成后，所有的bean都会初始化，而如果制定lazy-init后，只有用到的时候才会初始化。一般用不到。
 
+在注解中也可以标记延迟注解,不过是有要求的,如下所示:
+```
+@Lazy
+@Respository
+public class LogDao{
+}
+
+public class LogService{
+
+	@Lazy
+	@Autowired
+	public void setLogDao(LogDao logDao){
+	}
+}
+```
+
+如上所示,@Lazy必须要同时标注在属性以及目标Bean上,二者缺一则延迟注解无效.
+
 在bean的配置文件中，制定bean的init-method，和destroy-method，这样bean在初始化的时候会执行init-method，销毁的时候会执行destroy-method,如：
 
 ```
@@ -544,6 +622,29 @@ init
 destroy
 ```
 
+当然,代码中也有对应于init-method,destroy-method的方法,即`@PostConstruct`,`@PreDestroy`等注解,不过,注解可以标记多个方法,如:
+```
+@PostConstruct
+private void init(){
+
+}
+
+@PostConstruct
+private void init2(){
+
+}
+
+@PreDestroy
+private void destroy(){
+}
+
+@PreDestroy
+private void destroy2(){
+
+}
+```
+通过注解名就知道,`@PostConstruct`是在构造函数后执行,`@PreDestroy`是在销毁前执行.
+而其执行顺序是跟在类中方法的前后顺序有关.
 # bean后置处理器
 其实作用就是使用getBean取得bean对象的过程中，先对bean进行处理，然后才返回该bean。
 
@@ -1287,5 +1388,60 @@ public void buyBook(){
         <aop:advisor advice-ref="txAdvice" pointcut-ref="txPointcut"/>
     </aop:config>
 ```
+
+
+  
+# 后记
+spring配置不单单局限于xml和注解,还可以通过类来进行配置,可以上网搜对应的资料如JavaConfig,Groovy DSL等.这些配置都和Spring中的一些ApplicationContext相关,比如JavaConfig的配置和AnnotationConfigApplicationContext相关,而Groovy DSL则和GenericGroovyApplicationContext相关.
+
+
+在Spring启动的时候,会进行一系列的操作,对于加载资源来说,spring需要的类有`Resource`,`ResouceLoader`,其中`ResourceLoader`就是用于加载资源`Resource`的,比如配置的加载路径是:`classpath:xxx.xxx.xxx`,ResourceLoader就可以通过该路径去加载对应的资源.
+
+和Java中的Class类很相似,在Java中,每一个对象都有对应的Class类,在Spring中,每一个bean都有对应的配置类,就是`BeanDefinition`其保存bean的一系列配置信息,如`scope`,`lazy-init`等,`BeanDefinition`是一个接口,其抽象实现类是`AbstractBeanDefinition`,有两个类继承于该类,分别是`ChildBeanDefinition`,`RootBeanDefinition`就是这两个类,构成了Bean中的父子关系.在Spring启动的时候,会将xml或者其他配置文件中配置的bean,转换为`BeanDefinition`,并将`BeanDefinition`注册到`BeanDefinitionRegistry`中,`BeanDefinitionRegistry`就像spring的内存数据库,后续的操作直接从`BeanDefinitionRegistry`中读取配置信息.一般情况下,`BeanDefinition`只在容器启动的时候加载并解析,除非容器刷新或重启,否则这些信息是不会变化的.
+
+创建最终的`BeanDefinition`主要包括两个步骤:
+1. 利用`BeanDefinitionReader`读取承载配置信息的`Resource`,简单为每个`bean`生成对应的`BeanDefinition`,这里的`BeanDefinition`是半成品
+2. 利用`BeanFactoryPostProcessor`对半成品的`BeanDefinition`进行加工处理,此时`BeanDefinition`为成品.
+
+在生成BeanDefinition后,`InstantiationStrategy`负责通过`BeanDefinition`创建一个Bean实例.`InstantiationStrategy`是一个决策接口,其实现类可以通过不同的决策来实例化对应的类.最常用的实例化决策类是:`SimpleInstantiationStrategy`,该决策利用Bean实现类的默认构造函数,带参构造函数或工厂方法创建bean的实例.
+
+但是`InstantiationStrategy`只是实例化对象,不会对对象进行set填充操作,所以实例化的对象是一个半成品对象,而填充操作需要借助`BeanWrapper`来完成.
+
+spring中的`BeanWrapper`不单单作为包裹类而存在,它还是属性访问器,以及属性编辑器.在填充bean的值时,要从`BeanDefinitionRegistry`中获取`BeanDefinition`,然后取得`PropertyValue`的信息,后通过属性编辑器对`PropertyValue`进行转换得到bean的属性值,最后注入值即可.
+
+属性编辑器就是将一个字面量值正确转换为对应的int,double等正确数据类型,或者将来某一个字符串直接转换为一个对象,其转换操作就是通过属性编辑器来完成的.说的通俗点,属性编辑器就是一个类型转换器.
+
+spring在`PropertyEditorRegistrySupport`中为常见的属性类型提供了默认的属性编辑器,该类中有两个保存属性编辑器的Map变量,分别是`defaultEditors`和`customEditors`,前者保存spring中默认的属性编辑器,而后者保存用户自定义的属性编辑器,看到这就明白了,用户可以自定义属性编辑器,那么如何使用?
+
+在spring中大部分属性编辑器都直接扩展于`PropertyEditorSupport`类,那么我们也可以通过扩展该类来实现自定义属性编辑器,比如我想将来这个字面量`xuefulan,red,2018`转换为一个Car对象,那么自定义属性编辑器如下:
+```
+public class CustomCarEditor extends PropertyEditorSupport{
+
+	public void setAsText(String){
+		if(text == null || text.indexOf("," == -1){
+			throw new IllegalArgumentException("设置的字符串格式不正确");		
+		}	
+		String[] infos = text.split(",");
+		Car car = new Car();
+		car.setName(infos[0]);
+		car.setColor(infos[1]);
+		car.setYear(infos[2]);
+		//调用父类的setValue设置转换后的属性对象
+		setValue(car);
+	}
+
+}
+```
+有了自定义属性编辑器后,还要进行注册,前面已经说过`PropertyEditorRegistrySupport`中有一个Map用来存储自定义属性编辑器,那么可以通过配置文件进行注册:
+```
+    <bean class="org.springframework.beans.factory.config.CustomEditorConfigurer">
+        <property name="customEditors">
+            <map>
+                <entry key=""com.qxg.bean.Car" value="com.qxg.editor.CustomCarEditor" />
+            </map>
+        </property>
+    </bean>
+```
+entry中的key为对哪种类型的类会采取value中的属性编辑器.
 
 

@@ -624,7 +624,68 @@ ModelAttriibute标记的方法会在@RequestMapping之前被调用。
 它可能是由URI模板变量和类型转换中取得的（下面会详细讲解）
 它可能是调用了自身的默认构造器被实例化出来的
 
+## SessionAttribute
 
+用于保存某对象到HttpSession中,其使用方法一般搭配@ModelAttribute,如下:
+```
+@RequestMapping("springtest")
+@SessionAttributes("user")   //此处的注解,会将handler中@ModelAttribute标注的对象传入到HttpSession中
+public class HelloworldController {
+
+
+    @RequestMapping("/testUser")
+    public String handler(@ModelAttribute("user") User user){
+        return "redirect:/springtest/testUser2";
+    }
+
+    @RequestMapping("/testUser2")
+    public String handler2(ModelMap map, SessionStatus sessionStatus){
+        //ModelMap会自动被注入HttpSession中的参数,所以这个地方也可以取出
+        User user = (User) map.get("user");
+        if(user != null){
+            sessionStatus.setComplete(); //该对象用于清除HttpSession中的属性.
+        }
+        return "success";
+    }
+}
+```
+
+但是这样启动后加载/springtest/testUser会出现错误,原因是
+对于标注了@ModelAttribute的入参,比如上述中的handler()中的入参,其流程是:
+1. 如果隐含模型(ModelAndView)拥有名为user的属性,则将其入参,然后通过请求消息,填充入参中对应的数据.如果没有,则进行下一步.
+2. 判断user是否是会话属性,即被@SessionAttribute标记的属性:@SessionAttribute("user"),则尝试从该会话中获取该属性,将其入参,然后用请求消息填充.如果会话中找不到,则抛出异常.
+
+看到这就明白了,启动后加载/springtest/testUser时候,因为隐藏模型中没有User类实例,所以要在会话中寻找,结果会话中也没有,所以就会抛出异常.解决办法是,在handler运行前,创建一个@ModelAttribute("user")标注的对象,如下所示:
+```
+@RequestMapping("springtest")
+@SessionAttributes("user")  //此处的注解,会将handler中@ModelAttribute标注的对象传入到HttpSession中
+public class HelloworldController {
+
+    //在入参前,先调用该方法,创建user实例并传入到隐藏的模型中,这样handler在取的时候,就可以取出user对象了.
+    @ModelAttribute("user")
+    public User getUser(){
+        User user = new User();
+        return user;
+    }
+
+    @RequestMapping("/testUser")
+    public String handler(@ModelAttribute("user") User user){
+        return "redirect:/springtest/testUser2";
+    }
+
+    @RequestMapping("/testUser2")
+    public String handler2(ModelMap map, SessionStatus sessionStatus){
+        //ModelMap会自动被注入HttpSession中的参数,所以这个地方也可以取出
+        User user = (User) map.get("user");
+        if(user != null){
+            sessionStatus.setComplete(); //该对象用于清除HttpSession中的属性.
+        }
+        return "success";
+    }
+}
+```
+
+这样每次启动的时候调用handler方法的时候,其中user对象先是通过getUser获取,然后通过请求信息填充,最后将user传入到会话HttpSession中,最后重定向到handler2的时候,HttpSession中的属性会注入到map中,map就可以取得对应的对象进行操作了.
 
 # 视图和视图解析器
 

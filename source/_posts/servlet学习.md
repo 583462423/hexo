@@ -64,6 +64,70 @@ init()，在整个生命周期，该方法只被调用一次->响应客户端请
 
 9. Config -----> getServletConfig
 
+
+# web配置和servlet的部分关系
+servlet有很多类,ServletCofig的实现类是HttpServlet,其中ServletConfig 是一个接口,其对应的操作有:
+```
+public interface ServletConfig {
+    String getServletName();
+
+    ServletContext getServletContext();
+
+    String getInitParameter(String var1);
+
+    Enumeration<String> getInitParameterNames();
+}
+```
+最主要的是`getServletContext`和`getInitParameter`,`getServletContext`就是获取应用对象,即application,该对象在工程初始化的时候存在,一个项目工程对应一个该对象,而`getInitParameter`就与web.xml中的配置相对应,如:
+```
+<servlet>  
+    <servlet-name>name</servlet-name>  
+    <servlet-class>com.example.MyServlet</servlet-class>  
+    <init-param>  
+         <param-name>name</param-name>  
+         <param-value>张无忌</param-value>  
+    </init-param>  
+     <init-param>  
+         <param-name>age</param-name>  
+         <param-value>20</param-value>  
+    </init-param>  
+  </servlet>  
+```
+其`getInitParameter`可以取`<init-param>`的值.
+
+`ServletContext`是一个全局对象,代表了一个应用,服务器启动就创建了该对象,每个web应用都有一个唯一的`ServletContext`对象.获取该对象的方式有多种,一种是通过`ServletConfig`或`HttpServlet`来获取,一种是通过`HttpRequest`来获取`HttpSession`之后通过`HttpSession`来获取.
+
+`ServletContext`接口中有很多内容,不再贴了.其也可以获取一些初始化参数,对应web.xml中的就是:
+```
+<context-param>  
+        <param-name>name</param-name>  
+        <param-value>嘿嘿</param-value>  
+  </context-param>  
+   <context-param>  
+        <param-name>age</param-name>  
+        <param-value>198</param-value>  
+    </context-param>  
+```
+
+常用的方法有:
+`getAttribute(name)`:获取参数值
+`setAttribute(String,Object)`:设置参数
+`getContext(String path)`:获得某路径对应的ServletContext
+`getContextPath()`:获取当前工程的路径
+`getInitParameter(String name)`:获取初始化参数值
+`getInitParameterNames()`:获取初始化参数名的集合
+`getRealPath(String)`:获取在服务器上的路径
+`getRequestDispatcher(String path)`:获取对应路径的转发器
+
+对于转发来说,其应用也很简单,如代码:
+```
+
+	RequestDispatcher rd = sc.getRequestDispatcher("/servlet/AnotherServlet") ; 
+	//转发请求
+	rd.forward(request, response) ; 
+```
+
+
 # 初始化参数
 在web.xml对应的servlet标签下，添加<init-param>标签,如：
 

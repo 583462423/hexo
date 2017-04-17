@@ -616,6 +616,335 @@ public class MethodHandleTest{
 
 一般来说,这个方法可以做的事情,使用反射也可以做,但是反射是重量级,而MethodHandler是轻量级.
 
+# 泛型与类型的擦除
+Java语言中的泛型则不一样,它只在程序源码中存在,在编译后的字节码文件中,就已经替换为原来的原生类型(Raw Type,也称为裸类型)了,并且在相应的地方插入了强制转型代码,因此,对于**运行期**的Java语言来说,ArrayList<int>与ArrayList<String>就是**同一个类**,Java语言中的泛型实现方法称为类型擦除,基于这种方法实现的泛型称为伪泛型.
 
+泛型擦除前:
+```
+public static void main(String[]args){
+	Map<String,String>map=new HashMap<String,String>();
+	map.put("hello","你好");
+	map.put("how are you?","吃了没?");
+	System.out.println(map.get("hello"));
+	System.out.println(map.get("how are you?"));
+}
+```
+泛型擦除后:
+```
+public static void main(String[]args){
+	Map map=new HashMap();
+	map.put("hello","你好");
+	map.put("how are you?","吃了没?");
+	System.out.println((String)map.get("hello"));
+	System.out.println((String)map.get("how are you?"));
+}
+```
+
+
+考虑下方代码:
+```
+public static void method(List<Object> l){
+        
+}
+
+public static void method(List<String> l){
+
+}
+
+```
+
+运行期间,两个泛型被擦除,所以这两个方法其实是一个方法,所有不会通过.
+
+但是对于下方代码
+```
+public static Object method(List<Object> l){
+
+}
+
+public static String method(List<String> l){
+
+}
+
+```
+使用sun的编译器会通过,因为返回值不一样,但是其他编译器就会造成拒绝.
+
+# 自动装箱,拆箱与遍历循环
+编译前:
+```
+public static void main(String[]args){
+	List<Integer>list=Arrays.asList(1,2,3,4);
+	//如果在JDK 1.7中,还有另外一颗语法糖 [1]
+	//能让上面这句代码进一步简写成List<Integer>list=[1,2,3,4];
+	int sum=0;
+	for(int i:list){
+	sum+=i;
+	}
+	System.out.println(sum);
+}
+```
+编译后:
+```
+public static void main(String[]args){
+	List list=Arrays.asList(new Integer[]{
+	Integer.valueOf(1),
+	Integer.valueOf(2),
+	Integer.valueOf(3),
+	Integer.valueOf(4)});
+	int sum=0;
+	for(Iterator localIterator=list.iterator();localIterator.hasNext();){
+	int i=((Integer)localIterator.next()).intValue();
+	sum+=i;
+	}
+	System.out.println(sum);
+}
+```
+程序
+```
+Integer a=1;
+Integer b=2;
+Integer c=3;
+Integer d=3;
+Integer e=321;
+Integer f=321;
+Long g=3L;
+System.out.println(c==d);
+System.out.println(e==f);
+System.out.println(c==(a+b));
+System.out.println(c.equals(a+b));
+System.out.println(g==(a+b));
+System.out.println(g.equals(a+b));
+```
+
+程序运行结果是:
+```
+true
+false
+true
+true
+true
+false
+```
+
+反编译结果是:
+```
+Integer a = Integer.valueOf(1);
+Integer b = Integer.valueOf(2);
+Integer c = Integer.valueOf(3);
+Integer d = Integer.valueOf(3);
+Integer e = Integer.valueOf(321);
+Integer f = Integer.valueOf(321);
+Long g = Long.valueOf(3L);
+System.out.println(c == d);
+System.out.println(e == f);
+System.out.println(c.intValue() == a.intValue() + b.intValue());
+System.out.println(c.equals(Integer.valueOf(a.intValue() + b.intValue())));
+System.out.println(g.longValue() == (long)(a.intValue() + b.intValue()));
+System.out.println(g.equals(Integer.valueOf(a.intValue() + b.intValue())));
+```
+
+对于c==d来说,其输出值为true,表示其指向同一个对象,而e==f则指向不同的对象,其实查看源码可以知道:
+```
+public static Integer valueOf(int i) {
+        if (i >= IntegerCache.low && i <= IntegerCache.high)
+            return IntegerCache.cache[i + (-IntegerCache.low)];
+        return new Integer(i);
+    }
+```
+其实很多基本的装箱类型,反编译后,都是通过valueOf()来赋值的,大可看下对应的源码,比如Boolean的valueOf源码会不论true还是false都会返回同一个对象.
+
+
+表示[-128,127]的数字会直接返回IntegerCache缓存中的数,而不在这个范围内的数,会直接通过new来创建新的对象.
+
+如果是a+b的相加操作,其最终的返回值是int,所以c = (a+b)其实是int值之间的比较.
+对于g = (a+b)而言,会将a+b所得的值转换为long值之后才会进行比较,可以大胆的猜想,其短字节的值会向长字节值进行转换.
+# 解释器和编译器
+Java中是混合模型,有解释器也有编译器(JIT 即时编译).那么什么是解释器什么是编译器.
+把源代码编译成和本地机器平台相关的机器语言，叫即时编译,另一种是编译成一种中间的字节码，与机器平台无关的，这种也是常用的，执行的时候还要在JVM上解释运行,这叫解释型的.
+
+为了提高热点代码的执行效率,在运行时,虚拟机将会把这些代码编译成与本地平台相关的机器码,并进行各种层次的优化,完成这个任务的编译器称为即时编译器.
+
+当程序需要迅速启动和执行的时候,解释器可以首先发挥作用,省去编译的时间,立即执行。在程序运行后,随着时间的推移,编译器逐渐发挥作用,把越来越多的代码编译成本地代码之后,可以获取更高的执行效率。
+
+在运行过程中会被即时编译器编译的“热点代码”有两类,即:被多次调用的方法,被多次执行的循环体。
+
+判断一段代码是不是热点代码,是不是需要触发即时编译,这样的行为称为热点探测(Hot Spot Detection),其实进行热点探测并不一定要知道方法具体被调用了多少次,目前主要的热点探测判定方式有两种 ,分别如下:
+基于采样的热点探测:采用这种方法的虚拟机会**周期性地检查各个线程的栈顶**,如果发现某个(或某些)方法经常出现在栈顶,那这个方法就是“热点方法”。基于采样的热点探测的好处是实现简单、高效,还可以很容易地获取方法调用关系(将调用堆栈展开即可),缺点是很难精确地确认一个方法的热度,容易因为受到线程阻塞或别的外界因素的影响而扰乱热点探测。
+
+基于计数器的热点探测(Counter Based Hot Spot Detection):采用这种方法的虚拟机会为每个方法(甚至是代码块)**建立计数器**,统计方法的执行次数,如果执行次数超过一定的**阈值**就认为它是“热点方法”。这种统计方法实现起来麻烦一些,需要为每个方法建立并维护计数器,而且不能直接获取到方法的调用关系,但是它的统计结果相对来说更加精确和严谨。
+
+HotSpot虚拟机中使用的就是第二种
+
+
+# Java 内存模型
+首先要知道的概念是,处理器即CPU用来运算的,其运算速度和对内存读写的速度是有一定的关联的,如果对内存读写速度很慢,必然会拖慢CPU的运算速度,所以一般都会设立一个高速缓存来减轻I/O操作的压力.但是如果有多个处理器,每个处理器和内存间都存在一个高速缓存,那么这种情况,在同步数据的时候,将可能导致各自的缓冲数据不一样,这个时候就出现了问题,如下图:
+![](/images/CPU内存.png)
+
+Java虚拟机规范中试图定义一种Java内存模型 (Java Memory Model,JMM)来屏蔽掉各种硬件和操作系统的内存访问差异,以实现让Java程序在各种平台下都能达到一致的内存访问效果。
+
+Java内存模型规定了所有的变量(实例字段,静态字段,构成数组对象的元素,不包括局部变量和方法参数,后者是线程私有的)都存储在主内存(Main Memory)中(此处的主内存与介绍物理硬件时的主内存名字一样,两者也可以互相类比,但此处仅是虚拟机内存的一部分)。每条线程还有自己的工作内存(Working Memory,可与高速缓存类比),线程的工作内存中保存了被该线程使用到的变量的主内存副本拷贝,线程对变量的所有操作(读取、赋值等)都必须在工作内存中进行,而不能直接读写主内存中的变量.不同的线程之间也无法直接访问对方工作内存中的变量,线程间变量值的传递均需要通过主内存来完成,线程、主内存、工作内存三者的交互关系如下图所示:
+![](/images/线程工作内存主内存.png)
+
+对于拷贝副本来说,如“假设线程中访问一个10MB的对象,也会把这10MB的内存复制一份拷贝出来吗?”,事实上并不会如此,这个对象的引用、对象中某个在线程访问到的字段是有可能存在拷贝的,但不会有虚拟机实现成把整个对象拷贝A一次.
+
+
+## 内存间交互操作
+关于主内存与工作内存之间具体的交互协议,即一个变量如何从主内存拷贝到工作内存、如何从工作内存同步回主内存之类的实现细节,Java内存模型中定义了以下8种操作来完成,虚拟机实现时必须保证下面提及的每一种操作都是原子的、不可再分的.
+原子就是要么都执行要么都不执行.对于Java中的一些操作,如果操作可被中断,那么就不是原子的,比如`a = b`,会先读取b的值,然后做赋值操作,这个步骤分两部,在第二步的时候,可能会中断,也就是说操作可能不成功,所以这种操作不是原子的.
+
+* lock(锁定):作用于主内存的变量,它把一个变量标识为一条线程独占的状态。
+* unlock(解锁):作用于主内存的变量,它把一个处于锁定状态的变量释放出来,释放后的变量才可以被其他线程锁定。
+* read(读取):作用于主内存的变量,它把一个变量的值从主内存传输到线程的工作内存中,以便随后的load动作使用。
+* load(载入):作用于工作内存的变量,它把read操作从主内存中得到的变量值放入工作内存的变量副本中。
+* use(使用):作用于工作内存的变量,它把工作内存中一个变量的值传递给执行引擎,每当虚拟机遇到一个需要使用到变量的值的字节码指令时将会执行这个操作。
+* assign(赋值):作用于工作内存的变量,它把一个从执行引擎接收到的值赋给工作内存的变量,每当虚拟机遇到一个给变量赋值的字节码指令时执行这个操作。
+* store(存储):作用于工作内存的变量,它把工作内存中一个变量的值传送到主内存中,以便随后的write操作使用。
+* write(写入):作用于主内存的变量,它把store操作从工作内存中得到的变量的值放入主内存的变量中。
+
+
+如果要把一个变量从主内存复制到工作内存,那就要顺序地执行read和load操作,如果要把变量从工作内存同步回主内存,就要顺序地执行store和write操作。注意,Java内存模型只要求上述两个操作必须按顺序执行,而没有保证是连续执行。也就是说,read与load之间、store与write之间是可插入其他指令的,如对主内存中的变量a、b进行访问时,一种可能出现顺序是read a、read b、load b、load a。除此之外,Java内存模型还规定了在执行上述8种基本操作时必须满足如下规则:
+* 不允许read和load、store和write操作之一单独出现,即不允许一个变量从主内存读取了但工作内存不接受,或者从工作内存发起回写了但主内存不接受的情况出现。
+* 不允许一个线程丢弃它的最近的assign操作,即变量在工作内存中改变了之后必须把该变化同步回主内存。
+* 不允许一个线程无原因地(没有发生过任何assign操作)把数据从线程的工作内存同步回主内存中。一个新的变量只能在主内存中“诞生”,不允许在工作内存中直接使用一个未被初始化
+* (load或assign)的变量,换句话说,就是对一个变量实施use、store操作之前,必须先执行过了assign和load操作。
+* 一个变量在同一个时刻只允许一条线程对其进行lock操作,但lock操作可以被同一条线程重复执行多次,多次执行lock后,只有执行相同次数的unlock操作,变量才会被解锁。
+* 如果对一个变量执行lock操作,那将会清空工作内存中此变量的值,在执行引擎使用这个变量前,需要重新执行load或assign操作初始化变量的值。
+* 如果一个变量事先没有被lock操作锁定,那就不允许对它执行unlock操作,也不允许去unlock一个被其他线程锁定住的变量。
+* 对一个变量执行unlock操作之前,必须先把此变量同步回主内存中(执行store、write操作)。
+
+## volatile特殊规则
+当一个变量定义为volatile之后,它将具备两种特性,第一是保证此变量对所有线程的可见性,这里的“可见性”是指当一条线程修改了这个变量的值,新值对于其他线程来说是可以立即得知的。而普通变量不能做到这一点,普通变量的值在线程间传递均需要通过主内存来完成,例如,线程A修改一个普通变量的值,然后向主内存进行回写,另外一条线程B在线程A回写完成了之后再从主内存进行读取操作,新变量值才会对线程B可见。
+
+但是由于Java里面的运算并非原子性操作,导致volatile变量的运算在并发下一样是不安全的.比如下述例子:
+```
+public class VolatileTest{
+	public static volatile int race=0;
+	public static void increase(){
+	race++;
+}
+private static final int THREADS_COUNT=20;
+public static void main(String[]args){
+	Thread[]threads=new Thread[THREADS_COUNT];
+	for(int i=0;i<THREADS_COUNT;i++){
+		threads[i]=new Thread(new Runnable(){
+			@Override
+			public void run(){
+				for(int i=0;i<10000;i++){
+					increase();
+				}
+			}
+		});
+		threads[i].start();
+	}
+	//等待所有累加线程都结束
+	while(Thread.activeCount()>1)
+		Thread.yield();
+		System.out.println(race);
+	}
+}
+```
+可见其操作的目的是让race变量进行10000次自增操作,但是每次打印处的值,都比10000小,这就说明,volatile变量不能完全实现同步功能.
+
+由于volatile变量只能保证可见性,在不符合以下两条规则的运算场景中,我们仍然要通过加锁(使用synchronized或java.util.concurrent中的原子类)来保证原子性:运算结果并不依赖变量的当前值,或者能够确保只有单一的线程修改变量的值。变量不需要与其他的状态变量共同参与不变约束。
+
+volatile的使用场景:
+```
+volatile boolean shutdownRequested;
+public void shutdown(){
+	shutdownRequested=true;
+}
+public void doWork(){
+	while(!shutdownRequested){
+		//do stuff
+	}
+}
+```
+当shutdown()方法被调用时,能保证所有线程中执行的doWork()方法都立即停下来。
+
+volitale还有一个语义作用是禁止指令重排序优化
+在代码中位于有volitale修饰的变量,在赋值后,会有一个汇编指令lock,这个操作相当于内存屏障.
+内存屏障是指指令重排序时,不能把后面的指令重排序到内存屏障之前的位置.
+在有volitale修饰的变量被赋值的时候,会多执行一个lock操作,它的作用是使本CPU的Cache写入内存中,写入动作会引起别的CPU或者别的内核无效其Cache(是已经读入Cache中的此变量无效的意思?),这种操作相当于对Cache中的变量做了一次store和write操作,所以经过这么一个操作可让前面volitale变量的修改对其他CPU立即可见.
+
+指令重排是指CPU采用了允许将多条指令不按程序规定的顺序分开发送给各相应电路单元处理。但并不是说指令任意重
+排,但是对于相互有依赖的指令不会重排,比如`a = 1;b = a + 1;`这种指令显然不会被重排.但是对于下面的指令`a=1;b=2`其相互不存在依赖,所以完全可以重排序.在本CPU内,volitale关键字修饰的变量后执行lock操作,会把修改同步到内存中,意味着之前的操作都已经执行完成,所以就形成了指令重排序无法越过内存屏障的效果.含义就是volitale修饰的变量的操作,不会将其排到之前的操作中,也不会将其排到之后的操作中,比如:
+```
+x=0;//1
+y=0;//2
+flag=true;//3
+x=4;//4
+y=4;//5
+```
+3这条指令,不可能会被插在1,2之前或4,5之后,但是并不保证1,2之间的顺序和4,5之间的顺序,所以volitale只是保证自己当前位置的顺序.
+
+指令重排序一般是在多线程中会遇到问题,在单线程中,指令重拍不会影响结果,但在多线程中就不一定.
+比如:
+```
+//线程1
+context = loadContext();
+flag = true;
+
+//线程2
+while(!flag){
+	sleep();
+}
+doWithContext(context);
+```
+如果没有被重排序,那么flag = true执行前,会先执行context,也就是说context被成功赋值,这个时候线程2循环终止执行doWithContext.
+但是因为冲排序,线程1中的两个操作是完全没有关系的,所以有这么一种情况是flag=true先执行,而context后执行,那么如果flag=true执行完毕后,这个时候线程中断跳到线程2中执行,循环退出后doWithContext中用到context未被成功赋值,就容易出错.所以多线程中指令重排是会导致一些问题的.
+
+解决方式就是使用volitale来禁止指令重排序,在flag上加上volitale关键字,也就是说在执行flag的时候,前边的指令一定已经执行完毕.
+
+## long和double的特殊规则
+Java内存模型要求lock、unlock、read、load、assign、use、store、write这8个操作都具有原子性,但是对于64位的数据类型(long和double),在模型中特别定义了一条相对宽松的规定:允许虚拟机将没有被volatile修饰的64位数据的读写操作划分为两次32位的操作来进行,即允许虚拟机实现选择可以不保证64位数据类型的load、store、read和write这4个操作的原子性,这点就是所谓的long和double的非原子性协定.
+
+如果有多个线程共享一个并未声明为volatile的long或double类型的变量,并且同时对它们进行读取和修改操作,那么某些线程可能会读取到一个既非原值,也不是其他线程修改值的代表了“半个变量”的数值。
+
+不过这种读取到“半个变量”的情况非常罕见(在目前商用Java虚拟机中不会出现),因为Java内存模型虽然允许虚拟机不把long和double变量的读写实现成原子操作,但允许虚拟机选择把这些操作实现为具有原子性的操作,而且还“强烈建议”虚拟机这样实现。在实际开发中,目前各种平台下的商用虚拟机几乎都选择把64位数据的读写操作作为原子操作来对待,因此我们在编写代码时一般不需要把用到的long和double变量专门声明为volatile。
+
+## 原子性,可见性,有序性
+原子性就是要么都执行,要么都不执行.
+可见性就是当一个线程修改了共享变量的值,其他线程能够立即得知这个修改.除了volatile具备可见性之外,synchronized和final也可以实现可见性
+有序性指一个线程中,指令执行的结果正确,代码看起来是有序的.而多线程中所有的操作是无序的.Java中提供volatile和synchronized来保证线程之间操作的有序性.
+
+synchronized保证了代码的原子性,可见性,有序性,所以看起来是万能的,原因是被synchronized修饰的锁变量,在同一时刻只允许一条线程对其进行lock操作,这条规则决定了持有同一个锁的的两个同步快只能串行的进入.
+
+## 先行发生规则
+程序次序规则:按照控制流顺序执行
+管程锁定规则:一个unlock操作先行发生于后面对同一个锁lock操作.(时间上的先后)
+volitale变量规则:对一个volatile变量的写操作先行发生于后面对这个变量的读操作(时间上的先后)
+线程启动规则:Thread对象的start方法先行发生于此线程的每一个动作.
+线程终止规则:线程中的所有操作都先行发生于对此线程的终止检测,我们可以通过Thread.join()方法结束、Thread.isAlive()的返回值等手段检测到线程已经终止执行。
+线程中断规则:对线程interrupt()方法的调用先行发生于被中断线程的代码检测到中断事件的发生,可以通过Thread.interrupted()方法检测到是否有中断发生。
+对象终结规则:一个对象的初始化完成(构造函数执行结束)先行发生于它的finalize()方法的开始。
+传递性:如果操作A先行发生于操作B,操作B先行发生于操作C,那就可以得出操作A先行发生于操作C的结论。
+
+## Java与线程
+JDK1.2之前,Java线程的实现通过用户线程实现,而1.2之后,是基于操作系统原生线程模型实现,也就是说,操作系统支持怎样的线程模型,在很大程度上决定了Java虚拟机的线程是怎样的映射的.
+
+
+### 状态
+Java语言定义5种线程状态,在任意时间点,一个线程只能有且只有其中一种状态
+New:创建后尚未启动
+Runnable:有可能在执行,有可能在等待
+Waiting:等待被其他线程显示唤醒,以下方法会让线程处于此状态:没有设置Timeout参数的Object.wait(),没有设置Timeout参数的Thread.join()方法,LockSupport.park()方法.
+Time Waiting:等待被唤醒,但到时后被自动唤醒,如Threa.sleep(),Object.wait(Timeout),Thread.join(Timeout),LockSupport.parkNanos(),LockSupport.parkUntil().
+Blocked(阻塞):线程被阻塞,等待获取锁.
+Terminated(终止):线程已终止
+
+以上状态在遇到特定事件发生后会互相转换:
+![](/images/线程状态转换.png)
+
+## 线程安全
+按照线程安全的安全程度由强到弱排序:不可变,绝对线程安全,相对线程安全,线程兼容和线程对立.
+
+
+实现线程安全的同步方式有:互斥同步,非阻塞同步,无同步
+
+互斥同步就是进行线程阻塞实现的同步,如synchronized,ReentrantLock等实现的同步.
+JDK 1.6发布之后,人们就发现synchronized与ReentrantLock的性能基本上是完全持平了。虚拟机在未来的性
+能改进中肯定也会更加偏向于原生的synchronized,所以还是提倡在synchronized能实现需求的情况下,优先考虑使用synchronized来进行同步。
+互斥同步是一种悲观的并发策略.
+随着硬件指令集的发展,我们有了另外一个选择:基于冲突检测的乐观并发策略,通俗地说,就是先进行操作,如果没有其他线程争用共享数据,那操作就成功了;如果共享数据有争用,产生了冲突,那就再采取其他的补偿措施(最常见的补偿措施
+就是不断地重试,直到成功为止),这种乐观的并发策略的许多实现都不需要把线程挂起,因此这种同步操作称为非阻塞同步
 # JVM常见面试题
 
