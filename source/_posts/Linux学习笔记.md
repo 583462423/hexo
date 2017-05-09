@@ -219,6 +219,13 @@ scp 2.txt root@192.168.1.155:3.txt （把本地2.txt文件上传到服务器的r
 
 如果要传送文件夹，加上参数-r即可
 
+**安装myql**:`sudo apt install mysql-server`
+
+**Tomcat配置**:http://jingyan.baidu.com/article/e4d08ffdabb0710fd2f60de9.html
+
+**JDK配置**:http://blog.csdn.net/w965440884/article/details/51498556
+
+**Tomcat部署项目**:部署方法很简单,就是把对应的项目目录发送到服务器的tomcat的webapps目录下即可.
 # VIM相关
 
 首先vim的ctrl + s是锁定屏幕而不是保存，需要使用ctrl+q解锁

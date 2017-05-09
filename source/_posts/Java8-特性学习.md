@@ -513,3 +513,121 @@ Stream<Integer> stream = IntStream.range(0,100).boxed();
 如:`Stream.of(someArr).parallel()`在终止方法执行前,流处于并行模式,那么所有延迟执行的流操作都会被并行执行.
 你需要确保传递给并行流操作的函数都是线程安全的.比如AtomicInteger的对象,可以用来做计数器.
 可以放弃有序来加快limit()的方法速度
+
+# 新的日期和事件函数
+
+## 时间线
+
+使用`Instant.now()`获取当前的瞬时时间点,可以使用`equals`和`compareTo`方法来比较两个瞬时点.可以通过Duration.between()来计算两个瞬时点的距离.比如计算某个代码的执行时间:
+```
+Instant start = Instant.now();
+//some code
+Duration timeDuration = Duration.between(start,Instant.now());
+System.out.println(timeDuration.toMillis());
+```
+一个`Duration`对象表示两个瞬时之间的时间量,你可以通过调用toNanos,toMilis,toSeconds,...等方法得到各种事件单位来表示的Duration对象.
+
+Duration和Instant对象中有很多方法,比如加一段时间,成倍增长一段时间等等.
+比如检查某个算法是否比另一个算法至少快10倍:
+```
+Duration time = Duration.between(start2,end2);
+boolean overTenTimeFaster = time.multipliedBy(10).minus(time2).isNegative();
+```
+
+## 本地日期
+LocalDate是一个带有年份,月份,当月天数的日期,创建一个LocalDate可以使用静态方法now或of:
+```
+LocalDate now = LocalDate.now(); //今天的日期
+LocalDate now = LocalDate.of(1994,11,13);//特定的时期
+```
+该对象和java.util.Date中不按常理的做法(月份从0开始,年份从1990开始)不同,你可以使用与正常生活中一样的数字来表示月份.
+
+下表展示LocalDate常用的方法:
+
+|方法|描述|
+|--|--|
+|now,of|静态方法,用于创建|
+|plusDays,plusWeeks,plusMonths,plusYears|向当前LocalDate对象添加天数,周数,月年等.|
+|minusDays,minusWeeks...|减去|
+|plus,minus|添加或减少一个Duration或Period|
+|withDayOfMonth,withDayOfYear,withMonth,withYear|将月份天数,年份天数,月份,年份修改为指定值,并返回一个新的LocalDate对象|
+|getDayOfMonth|获取月份天数|
+|getDayOfYear|获取年份天数|
+|getDayOfWeek|获取星期几(返回DayOfWeek的枚举值)|
+|getMonth,getMonthValue|获取月份,或者Month枚举值|
+|getYear|获得年份|
+|Until|获得两个日期之间的Period对象,或者指定ChronoUnits的数字|
+|isBefore,isAfter|比较两个LocalDate|
+|isLeapYear|如果当年为闰年,则返回true|
+
+除了LocalDate,Java8中还提供了MonthDay,YearMonth和Year来描述部分日期,如MonthDay可以表示12.25,不用指定年份.
+通过以上方法,可以轻松获取日期对象,比如计算程序员日,程序员是每年的256日,那么通过下列代码轻松获取:
+```
+LocalDate programmerDay = LocalDate.of(2014.1.1).plusDays(255);
+```
+
+## 日期校正器
+对于一些需要安排调度的应用程序来说,通常要计算例如"每月的第一个周二"这样的日期TemporalAdjusters类提供很多静态方法来进行常用的校正.:
+```
+LocalDate firstTuesday = LocalDate.of(2017,4,1).with(TemporalAdjusters.nextOrSame(DayOfWeek.TUESDAY));
+System.out.println(firstTuesday);
+```
+这段代码打印2017.4.1的下一个周二,也就是4月的第一个周二.
+
+## 本地时间
+LocalTime表示一天中的某个时间,如15:30:00,可以使用now或of创建实例.
+
+## 格式化和解析
+DateTimeFormatter来格式化,自定义方式是:
+```
+DateTimeFormatter.ofPattern("yyyy-MM-dd").format(..);
+```
+其中ofPattern返回一个DateTimeFormatter对象,通过对象的format方法,可以对LocalDateTime,LocalDate,LocalTime等进行格式化.
+
+## 遗留代码相互操作
+Instant类相当于java.util.Date类,java8中Date对象可以通过toInstant方法进行转换,而from正好相反.
+ZonedDateTime类似于java.util.GregorianCalendar类,后者也增加了转换方法toZonedDateTime
+
+# 并发增强
+
+## 原子值
+在java.util.concurrent.atomic包中提供了用于支持无锁可变变量的类,如:
+```
+public static AtomicLong nextNumber = new AtomicLong();
+
+//在某些线程中
+long id = nextNumber.incrementAndGet();
+```
+
+通过这种原子类增加并赋值的操作,不会被打断,不论多少线程访问,都能返回正确的结果.
+java 5中提供了很多设置,增加,减少值的原子操作,但是如果要进行更复杂的操作,就必须使用commpareAndSet方法,比如下列方法:
+```
+public static AtomicLong largest = new AtomicLong();
+//在某些线程中
+largest.set(Math.max(largest.get(),anotherValue));
+```
+如上所述的更新并不是原子操作,如果要更新该值,应该使用下列方法:
+```
+do{
+	oldValue = larget.get();
+	newValue = Math.max(oldValue,anotherValue);
+}while(!largest.compareAndSet(oldValue,newValue));
+```
+如果另一个线程也在更新largest,很可能已经更新成功了,那么随后的compareAndSet会返回false,并不会设置新值.这样程序就重新循环设置新值.虽然听上去效率不高,但实际上该方法映射为底层的一个处理方法,比一个锁要快很多.
+
+但是在lambda中,不需要在书写循环来更新某个原子值,只需要提供一个lambda表达式,更新操作就会自动完成:
+```
+largetst.updateAndGet(x->Math.max(x,anotherValue));
+//or
+largest.accumulateAndGet(anotherValue,Math::max);
+```
+
+# 杂项改进
+
+## 字符串
+通过`String.join()`方法来将某个数组或者`Iterable`对象,通过某个分隔符链接起来.如:
+```
+String arr[] = {"a","b","c"};
+String result = String.join(",",arr);
+```
+可以把`join`方法想象为和`split`相反的方法.
