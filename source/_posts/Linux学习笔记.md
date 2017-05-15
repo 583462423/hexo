@@ -225,7 +225,7 @@ scp 2.txt root@192.168.1.155:3.txt （把本地2.txt文件上传到服务器的r
 
 **JDK配置**:http://blog.csdn.net/w965440884/article/details/51498556
 
-**Tomcat部署项目**:部署方法很简单,就是把对应的项目目录发送到服务器的tomcat的webapps目录下即可.
+**Tomcat部署项目**:部署方法很简单,就是把对应的项目目录(target/项目名)发送到服务器的tomcat的webapps目录下即可,不过在访问的时候,要加上项目名.
 # VIM相关
 
 首先vim的ctrl + s是锁定屏幕而不是保存，需要使用ctrl+q解锁
@@ -342,6 +342,6 @@ cat,more,less,head,tail等可在上边查看.
 -b 忽略空格数量的变化
 -u 统一显示比较信息
 
-# Linux系统启动
+
 
 
