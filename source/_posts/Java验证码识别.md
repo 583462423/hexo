@@ -72,7 +72,7 @@ public class ReadImg {
 其**图像预处理**的思路是,首先将图片进行二值化,如:
 ![](/images/3423.png)
 二值化后:
-![](/images/to3523.png)
+![](/images/to3423.png)
 
 代码为:
 ```
