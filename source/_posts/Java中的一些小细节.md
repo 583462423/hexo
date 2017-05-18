@@ -32,3 +32,11 @@ tags: Java
 22. List<String>和List<Object>没有任何关系,但是List<String>和List<? extends Object>是逻辑上的父子关系.
 23. 使用Iterator删除对象的时候,一定要调用next越过刚删除的位置,如:`it.remove(); it.next()`.
 24. 调用线程中断方法,只是让线程终止,产生中断异常的原因是线程被阻塞,无法检测中断状态.所以在sleep,或wait上调用interrupt方法时,阻塞调用会被InterruptedException异常中断.
+25. Java中InputStream和Reader的区别不仅仅是一个读字节,一个读字符.在最开始的时候,个人理解为,InputStream是一个字节一个自己的读,而Reader是一个字符一个字符的读,虽然读的内容不一样但是其数据应该一样的吧?答案当然是不一样.对于InputStream而言,其读的数据就是原始数据,而Reader而言,因为是读的字符,所以就涉及到字符的编码格式,其根据编码格式的不同,读入的数据就会不一样.所以,如果将一个字节流转换为字符流时,就提供了制定字符编码的构造器.
+26. 如果想知道当前jdk支持的字符编码格式,可以通过`Charset.availableCharsets()`来取得默认所有的编码,然后打印即可.
+27. RandomAccessFile虽然叫随即访问文件,但是其访问文件内容时,并不是随机的,这个随机的意思是,你可以自己指定访问的位置而不像其他流一样,只能从前读到尾.
+28. 读写文件可以通过`Path`和`Files`类来进行,方便快捷.如读入所有字节:`Files.readAllBytes(path)`,向指定文件写入内容:`Files.write(path,bytes)`.Files中的这些方法,可以处理中等长度的文件,如果文件内容比较大,还是应该使用熟知的流来进行处理.
+29. 文件复制,移动可以通过`Files.copy(),Files.move()`等方法.文件删除可以通过`Files.deleteIfExists(path)`.创建文件目录,可用:`Files.createDirectories(path)`,创建文件`Files.createFile(path)`等.Files和path结合使用,一些方法其实可以通过`File`这个类来代替.
+
+
+
