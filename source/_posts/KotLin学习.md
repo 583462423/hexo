@@ -13,7 +13,9 @@ tags: Java
 
 学习笔记参考官方学习文档:http://kotlinlang.org/docs/reference/basic-syntax.html
 
+后记:= =今天参考KotLin的有关内容,发现,已经有人成功把KotLin官方文档翻译过来了.自己啃着官方文档读了大半天,白忙活了orz..以后还是对着翻译文档看吧,简单易懂.文档地址:https://github.com/huanglizhuo/kotlin-in-chinese
 
+刚开始看的时候是20:00左右,当时star数量是800多,到23:00再来看的时候,已经1000star了,这波被google带的节奏是真的狠啊.看来过不了多久,下一个流行的语言将会是KotLin了.
 # 基础
 
 ## 基础类型
@@ -341,7 +343,7 @@ loop@ for (i in 1..100) {
         if (...) break@loop
     }
 }
-
+```
 # Class
 
 ## Constructors
