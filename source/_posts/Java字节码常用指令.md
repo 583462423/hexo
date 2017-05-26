@@ -39,6 +39,7 @@ push,ldc系列
 大体分为`xload`(x为i,l,f,d,a),xload_n(x为i,l,f,d,a. n为0~3),xaload(x为i,l,f,d,a,b,c,s)
 
 其中x表示数据类型为:
+
 |x取值|含义|
 |-|-|
 |i|int|
@@ -51,6 +52,7 @@ push,ldc系列
 |s|short|
 
 指令:
+
 |指令名称|指令功能|
 |-|-|
 |xload_n|将第n个局部变量压入操作数栈|
