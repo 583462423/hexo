@@ -52,8 +52,7 @@ HEAD 是一个指针，指向当前的分支名，当前分支名也是一个指
 |git reset 9e5e64a|reset和checkout很大的区别是，checkout切换分支的时候，是将HEAD指向一个分支，而reset则是将HEAD指向的分支去指向另一个分支|
 |git reset --soft HEAD~|reset到head的父节点|
 |git reset --hard HEAD~|reset到head的父节点，并删除掉之前提交和add的内容，比较危险的操作|
-
-
+|git cherry-pick <commit_id>|将已提交的其他分支的记录，应用到当前分支|
 
 在合并的时候，有两种合并方式，一种是fast-forward，这种合并是直接将master指向其子节点分支。还有一种就是分叉时候的合并，将两个节点的共同父节点取出，搞个三方合并，生成一个新的快照，且该快照又是两个分叉节点的子节点，这样就完事了。
 
